@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org/DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="boardMapper">
+	<!-- 페이징처리 -->
+	<select id="selectListCount" resultType="_int">
+		SELECT COUNT(*)
+		FROM BOARD
+		WHERE B_STATUS = 'Y'
+	</select>
+	<!-- 페이징처리2 -->
+	<select id="selectBoardList" resultMap="boardResultSet">
+		SELECT *
+		FROM BOARD
+			JOIN MEMBER ON(bwriter = user_id)
+		WHERE B_STATUS = 'Y'
+		ORDER BY BID DESC
+	</select>
+	<!-- boardResultSet을 아이디로 갖는 resultMap 생성 -->
+	<resultMap type="Board" id="boardResultSet">
+		<!-- id : 기본키pk column: DB컬럼명 property:맵핑시킬 필드명-->
+		<id column="BID" property="bId"/>
+		<!-- result: 일반컬럼 -->
+		<result column="BTYPE" property="bType"/>
+		<result column="BTITLE" property="bTitle"/>
+		<result column="BCONTENT" property="bContent"/>
+		<result column="BWRITER" property="bWriter"/>
+		<result column="NICKNAME" property="nickName"/>
+		<result column="BCOUNT" property="bCount"/>
+		<result column="B_CREATE_DATE" property="bCreateDate"/>
+		<result column="B_MODIFY_DATE" property="bModifyDate"/>
+		<result column="B_STATUS" property="bStatus"/>
+	</resultMap>
+	<!-- 넘겨받는값 있어서 반환값 int에 맞춰서 타입작성 -->
+	<update id="updateCount" parameterType="_int">
+		UPDATE BOARD
+		SET BCOUNT = BCOUNT + 1
+		WHERE BID = #{bId}
+	</update>
+	<!-- 보드에 초점을 맞춰야되서 LEFT JOIN 사용, null값도 다 가져와야한다.-->
+	<select id="selectBoard" parameterType="_int" resultMap="boardResultSet2">
+		SELECT BID, BTYPE, BTITLE, BCONTENT, BWRITER, M1.NICKNAME B_NICKNAME, BCOUNT,
+		    	B_CREATE_DATE, B_MODIFY_DATE, B_STATUS,
+		   		RID, RCONTENT, REF_BID, RWRITER, M2.NICKNAME R_NICKNAME,
+		    	R_CREATE_DATE, R_MODIFY_DATE, R_STATUS
+		FROM BOARD
+		    JOIN MEMBER M1 ON(BWRITER = M1.USER_ID)
+		    LEFT JOIN REPLY ON(BID = REF_BID)
+		    LEFT JOIN MEMBER M2 ON(RWRITER = M2.USER_ID)
+		WHERE B_STATUS = 'Y' AND BID = #{bId}
+		ORDER BY RID DESC
+	</select>
+	
+	<resultMap type="Board" id="boardResultSet2">
+		<!-- id : 기본키pk column: DB컬럼명 property:맵핑시킬 필드명-->
+		<id column="BID" property="bId"/>
+		<!-- result: 일반컬럼 -->
+		<result column="BTYPE" property="bType"/>
+		<result column="BTITLE" property="bTitle"/>
+		<result column="BCONTENT" property="bContent"/>
+		<result column="BWRITER" property="bWriter"/>
+		<result column="B_NICKNAME" property="nickName"/>
+		<result column="BCOUNT" property="bCount"/>
+		<result column="B_CREATE_DATE" property="bCreateDate"/>
+		<result column="B_MODIFY_DATE" property="bModifyDate"/>
+		<result column="B_STATUS" property="bStatus"/>
+		<!-- collection : ArrayList 받음  java.util.ArrayList :arrayList -->
+		<collection property="replyList" javaType="arrayList" resultMap="replyResultSet"></collection>
+	</resultMap>
+	
+	<resultMap type="Reply" id="replyResultSet">
+		<id column="RID" property="rId"/>
+		<result column="RCONTENT" property="rContent"/>
+		<result column="REF_BID" property="refBid"/>
+		<result column="RWRITER" property="rWriter"/>
+		<result column="R_NICKNAME" property="nickName"/>
+		<result column="R_CREATE_DATE" property="rCreateDate"/>
+		<result column="R_MODIFY_DATE" property="rModifyDate"/>
+		<result column="R_STATUS" property="rStatus"/>
+	</resultMap>
+	<!-- 검색하기 -->
+	<!-- 1.쿼리태그, 2.페이징, 3.동적쿼리(하나를가지고 여러효과를 주도록 나눠준다.) -->
+	<!-- condition경우의 수 -제목, 내용, 작성자 -->
+	<!-- value : 뭐라고 검색할건지 -->
+	<!-- 검색결과도 페이징처리해야한다 listCount진행 검색결과의 갯수를 가져온다-->
+	<select id="getSearchListCount" parameterType="hashmap" resultType="_int">
+		select count(*)
+		from board
+			 join member on(bwriter = user_id)
+		where b_status = 'Y'
+		<if test="condition == 'writer'">
+			and nickname = #{value}
+		</if>
+		<if test="condition == 'title'">
+			and btitle like '%' || #{value} || '%'
+		</if>
+		<if test="condition =='content'">
+			and bcontent like '%' || #{value} || '%'
+		</if>
+	</select>
+	
+	<!-- 검색할 결과 페이징 -->
+	<select id="selectSearchList" parameterType="map" resultMap="boardResultSet">
+		select *
+		from board
+			 join member on(bwriter = user_id)
+		where b_status = 'Y'
+		<choose>
+			<when test="condition == 'writer'">
+				and nickname = #{value}
+			</when>
+			<when test="condition == 'title'">
+				and btitle like '%' || #{value} || '%'
+			</when>
+			<otherwise>
+				and bcontent like '%' || #{value} || '%'
+			</otherwise>
+		</choose>
+		order by bid desc
+	</select>
+	
+	
+	
+	
+</mapper>
